@@ -16,5 +16,5 @@ func StartClient() {
 	}
 
 	log.Println("Envs loaded")
-	fmt.Println(env.ClientID, env.ClientSecret)
+	fmt.Println(env.GotifyClientID, env.GotitifyClientSecret)
 }
