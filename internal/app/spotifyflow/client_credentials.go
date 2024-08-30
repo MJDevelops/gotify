@@ -12,24 +12,25 @@ import (
 	"github.com/MJDevelops/gotify/internal/pkg/jsons"
 )
 
-type Spotify struct {
+type SpotifyClientCredential struct {
 	AccessToken string
-	RefreshCode string
 }
 
-func (s Spotify) RequestAccessToken() {
+func (s *SpotifyClientCredential) RequestAccessToken() error {
 	var err error
 	jsonMap := make(map[string]string)
 	envs, err := envs.LoadEnv()
 
 	if err != nil {
 		log.Println("Couldn't load envs")
+		return err
 	}
 
 	req, err := buildRequest(envs)
 
 	if err != nil {
 		log.Println("Couldn't build request")
+		return err
 	}
 
 	client := &http.Client{}
@@ -37,21 +38,26 @@ func (s Spotify) RequestAccessToken() {
 
 	if err != nil {
 		log.Println("Couldn't 'POST' request")
+		return err
 	} else if res.StatusCode != 200 {
-		log.Printf("Response contains a status code of %v", res.StatusCode)
+		err = fmt.Errorf("response contains a status code of %v", res.StatusCode)
+		return err
 	}
 
 	resBytes, err := io.ReadAll(res.Body)
 
 	if err != nil {
 		log.Println("Error trying to read response body")
+		return err
 	}
 
 	if err = jsons.ParseJSON(resBytes, &jsonMap); err != nil {
 		log.Println("Error trying to parse JSON")
+		return err
 	}
 
-	fmt.Println(jsonMap["access_token"])
+	s.AccessToken = jsonMap["access_token"]
+	return nil
 }
 
 func buildRequest(e *envs.GotifyEnv) (*http.Request, error) {
