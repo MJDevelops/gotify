@@ -3,9 +3,9 @@ package spotifyflow
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/MJDevelops/gotify/internal/pkg/envs"
@@ -22,14 +22,14 @@ func (s *SpotifyClientCredential) Authorize() error {
 	envs, err := envs.LoadEnv()
 
 	if err != nil {
-		log.Println("Couldn't load envs")
+		fmt.Fprint(os.Stderr, "Couldn't load envs")
 		return err
 	}
 
 	req, err := buildRequest(envs)
 
 	if err != nil {
-		log.Println("Couldn't build request")
+		fmt.Fprint(os.Stderr, "Couldn't build request")
 		return err
 	}
 
@@ -37,7 +37,7 @@ func (s *SpotifyClientCredential) Authorize() error {
 	res, err := client.Do(req)
 
 	if err != nil {
-		log.Println("Couldn't 'POST' request")
+		fmt.Fprint(os.Stderr, "Couldn't 'POST' request")
 		return err
 	} else if sc := res.StatusCode; sc != 200 {
 		err = fmt.Errorf("response contains a status code of %v", sc)
@@ -47,12 +47,12 @@ func (s *SpotifyClientCredential) Authorize() error {
 	resBytes, err := io.ReadAll(res.Body)
 
 	if err != nil {
-		log.Println("Error trying to read response body")
+		fmt.Fprint(os.Stderr, "Error trying to read response body")
 		return err
 	}
 
 	if err = jsons.ParseJSON(resBytes, &jsonMap); err != nil {
-		log.Println("Error trying to parse JSON")
+		fmt.Fprint(os.Stderr, "Error trying to parse JSON")
 		return err
 	}
 
