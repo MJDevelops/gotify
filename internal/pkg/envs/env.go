@@ -6,8 +6,8 @@ import (
 )
 
 type GotifyEnv struct {
-	GotitifyClientSecret string
-	GotifyClientID       string
+	GotifyClientSecret string
+	GotifyClientID     string
 }
 
 func LoadEnv() (GotifyEnv, error) {
@@ -19,7 +19,7 @@ func LoadEnv() (GotifyEnv, error) {
 	}
 
 	return GotifyEnv{
-		GotitifyClientSecret: clientSecret,
-		GotifyClientID:       clientId,
+		GotifyClientSecret: clientSecret,
+		GotifyClientID:     clientId,
 	}, err
 }
