@@ -16,7 +16,7 @@ type SpotifyClientCredential struct {
 	AccessToken string
 }
 
-func (s *SpotifyClientCredential) RequestAccessToken() error {
+func (s *SpotifyClientCredential) Authorize() error {
 	var err error
 	jsonMap := make(map[string]string)
 	envs, err := envs.LoadEnv()
@@ -39,8 +39,8 @@ func (s *SpotifyClientCredential) RequestAccessToken() error {
 	if err != nil {
 		log.Println("Couldn't 'POST' request")
 		return err
-	} else if res.StatusCode != 200 {
-		err = fmt.Errorf("response contains a status code of %v", res.StatusCode)
+	} else if sc := res.StatusCode; sc != 200 {
+		err = fmt.Errorf("response contains a status code of %v", sc)
 		return err
 	}
 
