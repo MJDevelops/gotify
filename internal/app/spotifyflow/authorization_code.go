@@ -30,12 +30,11 @@ type spotifyAuthorizationCodeResponse struct {
 	State string
 }
 
-const scopes = "" +
-	"user-read-playback-state user-modify-playback-state" +
-	"user-read-currently-playing app-remote-control" +
-	"streaming playlist-read-private" +
-	"playlist-read-collaborative playlist-modify-private" +
-	"playlist-modify-public user-library-modify" +
+const scopes = "user-read-playback-state user-modify-playback-state " +
+	"user-read-currently-playing app-remote-control " +
+	"streaming playlist-read-private " +
+	"playlist-read-collaborative playlist-modify-private " +
+	"playlist-modify-public user-library-modify " +
 	"user-library-read"
 
 const spotifyAuthorizeURL = "https://accounts.spotify.com/authorize?"
