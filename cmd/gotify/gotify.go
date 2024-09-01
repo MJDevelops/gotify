@@ -1,9 +1,17 @@
 package main
 
 import (
-	"github.com/MJDevelops/gotify/internal/app/gotify"
+	"fmt"
+	"os"
+
+	"github.com/MJDevelops/gotify/internal/app/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-	gotify.StartClient()
+	p := tea.NewProgram(tui.InitialAuthSelect())
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("An error occured: %v", err)
+		os.Exit(1)
+	}
 }
