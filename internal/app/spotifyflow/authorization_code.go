@@ -184,11 +184,11 @@ func waitForExchangeCode() {
 		log.Fatalf("ListenAndServe() %v", err)
 	}
 
-	fmt.Println("Waiting for request...")
+	log.Println("Waiting for request...")
 
 	closeWg.Wait()
 
-	fmt.Println("Request received")
+	log.Println("Request received")
 	srv.Close()
 }
 

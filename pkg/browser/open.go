@@ -14,13 +14,12 @@ func Open(url string) error {
 	case "windows":
 		cmd = "cmd"
 		args = []string{"/c", "start"}
+		url = strings.ReplaceAll(url, "&", "^&")
 	case "darwin":
 		cmd = "open"
 	default:
 		cmd = "xdg-open"
 	}
-
-	url = strings.ReplaceAll(url, "&", "^&")
 
 	args = append(args, url)
 	return exec.Command(cmd, args...).Start()
