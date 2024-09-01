@@ -2,6 +2,7 @@ package spotifyflow
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,17 +14,16 @@ import (
 	"sync"
 
 	"github.com/MJDevelops/gotify/internal/pkg/envs"
-	"github.com/MJDevelops/gotify/internal/pkg/jsons"
 	"github.com/MJDevelops/gotify/pkg/browser"
 	"github.com/google/go-querystring/query"
 )
 
 type SpotifyAuthorizationCode struct {
-	AccessToken  string
-	TokenType    string
-	Scope        string
-	ExpiresIn    string
-	RefreshToken string
+	AccessToken  string      `json:"access_token"`
+	TokenType    string      `json:"token_type"`
+	Scope        string      `json:"scope"`
+	ExpiresIn    json.Number `json:"expires_in"`
+	RefreshToken string      `json:"refresh_token"`
 }
 
 type spotifyExchangeCodeRequest struct {
@@ -58,7 +58,7 @@ var closeWg sync.WaitGroup
 var resCh = make(chan url.Values)
 var env = envs.LoadEnv()
 
-func KickstartAuthorizationCodeRequest() error {
+func (s *SpotifyAuthorizationCode) Authorize() error {
 	req := newExchangeCodeRequest()
 
 	urlVals, err := query.Values(*req)
@@ -89,14 +89,12 @@ func KickstartAuthorizationCodeRequest() error {
 		return err
 	}
 
-	spotifyAuthCode, err := requestAuthorizationCode(authCodeRequest)
+	err = requestAuthorizationCode(authCodeRequest, s)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error during Authorization Code Request: %v", err)
 		return err
 	}
-
-	fmt.Printf("%v", *spotifyAuthCode)
 
 	return nil
 }
@@ -126,63 +124,55 @@ func newAuthorizationCodeRequest(exchangeCodeReq spotifyExchangeCodeResponse) (*
 	}, nil
 }
 
-func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest) (*SpotifyAuthorizationCode, error) {
+func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *SpotifyAuthorizationCode) error {
 	urlVals, err := query.Values(*authReq)
 	client := &http.Client{}
-	jsonData := make(map[string]string)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't parse auth code request in requestAuthorizationCode(): %v", err)
-		return nil, err
+		return err
 	}
 
 	httpReq, err := http.NewRequest("POST", spotifyTokenReqURL, strings.NewReader(urlVals.Encode()))
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't create request in requestAuthorizationCode(): %v", err)
-		return nil, err
+		return err
 	}
 
 	httpReq.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	base64Encoder := base64.StdEncoding
-	base64ClientID := base64Encoder.EncodeToString([]byte(env.GotifyClientID))
-	base64ClientSecret := base64Encoder.EncodeToString([]byte(env.GotifyClientSecret))
+	base64EncodedStr := base64Encoder.EncodeToString([]byte(env.GotifyClientID + ":" + env.GotifyClientSecret))
 
-	authHeader := fmt.Sprintf("Basic %s:%s", base64ClientID, base64ClientSecret)
+	authHeader := fmt.Sprintf("Basic %s", base64EncodedStr)
 	httpReq.Header.Add("Authorization", authHeader)
 
 	res, err := client.Do(httpReq)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't perform 'POST' request in requestAuthorizationCode(): %v", err)
-		return nil, err
+		return err
 	}
 
 	if res.StatusCode != 200 {
 		fmt.Fprintf(os.Stderr, "Authorization Code Response is not 200: %d\n", res.StatusCode)
-		return nil, errors.New("response code is not 200")
+		return errors.New("response code is not 200")
 	}
 
 	resBody, err := io.ReadAll(res.Body)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't read from response body in requestAuthorizationCode(): %v", err)
-		return nil, err
+		return err
 	}
 
-	if err = jsons.ParseJSON(resBody, &jsonData); err != nil {
+	if err = json.Unmarshal(resBody, s); err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't parse JSON from response body in requestAuthorizationCode(): %v", err)
-		return nil, err
+		return err
 	}
 
-	return &SpotifyAuthorizationCode{
-		AccessToken:  jsonData["access_token"],
-		RefreshToken: jsonData["refresh_token"],
-		TokenType:    jsonData["token_type"],
-		Scope:        jsonData["scope"],
-		ExpiresIn:    jsonData["expires_in"],
-	}, nil
+	return nil
 }
 
 func waitForExchangeCode() {

@@ -9,11 +9,7 @@ import (
 
 func StartClient() {
 	log.Println("Loading envs")
-	env, err := envs.LoadEnv()
-
-	if err != nil {
-		log.Fatal("Couldn't load client secret and/or client id, exiting")
-	}
+	env := envs.LoadEnv()
 
 	log.Println("Envs loaded")
 	fmt.Println(env.GotifyClientID, env.GotifyClientSecret)

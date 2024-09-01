@@ -1,6 +1,7 @@
 package spotifyflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,15 +10,13 @@ import (
 	"strings"
 
 	"github.com/MJDevelops/gotify/internal/pkg/envs"
-	"github.com/MJDevelops/gotify/internal/pkg/jsons"
 )
 
 type SpotifyClientCredential struct {
-	AccessToken string
+	AccessToken string `json:"access_token"`
 }
 
 func (s *SpotifyClientCredential) Authorize() error {
-	jsonMap := make(map[string]string)
 	envs := envs.LoadEnv()
 
 	req, err := buildRequest(envs)
@@ -45,12 +44,11 @@ func (s *SpotifyClientCredential) Authorize() error {
 		return err
 	}
 
-	if err = jsons.ParseJSON(resBytes, &jsonMap); err != nil {
+	if err = json.Unmarshal(resBytes, s); err != nil {
 		fmt.Fprint(os.Stderr, "Error trying to parse JSON")
 		return err
 	}
 
-	s.AccessToken = jsonMap["access_token"]
 	return nil
 }
 
