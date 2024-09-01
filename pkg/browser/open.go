@@ -3,6 +3,7 @@ package browser
 import (
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 func Open(url string) error {
@@ -18,6 +19,8 @@ func Open(url string) error {
 	default:
 		cmd = "xdg-open"
 	}
+
+	url = strings.ReplaceAll(url, "&", "^&")
 
 	args = append(args, url)
 	return exec.Command(cmd, args...).Start()

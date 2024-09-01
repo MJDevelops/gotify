@@ -76,7 +76,7 @@ func newAuthorizationCodeRequest() (*spotifyAuthorizationCodeRequest, error) {
 	envs, err := envs.LoadEnv()
 
 	return &spotifyAuthorizationCodeRequest{
-		RedirectUri:  "localhost:8080/callback",
+		RedirectUri:  "http://localhost:8888/callback",
 		ResponseType: "code",
 		ClientID:     envs.GotifyClientID,
 		Scope:        scopes,
@@ -84,13 +84,15 @@ func newAuthorizationCodeRequest() (*spotifyAuthorizationCodeRequest, error) {
 }
 
 func waitForAuth() {
-	srv := &http.Server{Addr: ":8080"}
+	srv := &http.Server{Addr: ":8888"}
 	http.HandleFunc("/callback", handleCallback)
 	closeWg.Add(1)
 
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("ListenAndServe() %v", err)
 	}
+
+	fmt.Println("Waiting for request...")
 
 	closeWg.Wait()
 	srv.Close()
