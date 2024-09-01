@@ -1,33 +1,46 @@
 package spotifyflow
 
 import (
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/MJDevelops/gotify/internal/pkg/envs"
+	"github.com/MJDevelops/gotify/internal/pkg/jsons"
 	"github.com/MJDevelops/gotify/pkg/browser"
 	"github.com/google/go-querystring/query"
 )
 
 type SpotifyAuthorizationCode struct {
-	AccessToken string
+	AccessToken  string
+	TokenType    string
+	Scope        string
+	ExpiresIn    string
+	RefreshToken string
 }
 
-type spotifyAuthorizationCodeRequest struct {
+type spotifyExchangeCodeRequest struct {
 	ClientID     string `url:"client_id"`
 	ResponseType string `url:"response_type"`
 	RedirectUri  string `url:"redirect_uri"`
 	Scope        string `url:"scope"`
 }
 
-type spotifyAuthorizationCodeResponse struct {
-	Code  string
-	State string
+type spotifyExchangeCodeResponse struct {
+	Code string
+}
+
+type spotifyAuthorizationCodeRequest struct {
+	Code        string `url:"code"`
+	GrantType   string `url:"grant_type"`
+	RedirectUri string `url:"redirect_uri"`
 }
 
 const scopes = "user-read-playback-state user-modify-playback-state " +
@@ -37,18 +50,16 @@ const scopes = "user-read-playback-state user-modify-playback-state " +
 	"playlist-modify-public user-library-modify " +
 	"user-library-read"
 
+const redirectUri = "http://localhost:8888/callback"
 const spotifyAuthorizeURL = "https://accounts.spotify.com/authorize?"
+const spotifyTokenReqURL = "https://accounts.spotify.com/api/token"
 
 var closeWg sync.WaitGroup
 var resCh = make(chan url.Values)
+var env = envs.LoadEnv()
 
 func KickstartAuthorizationCodeRequest() error {
-	req, err := newAuthorizationCodeRequest()
-
-	if err != nil {
-		fmt.Fprint(os.Stderr, "Couldn't initialize request")
-		return err
-	}
+	req := newExchangeCodeRequest()
 
 	urlVals, err := query.Values(*req)
 
@@ -60,30 +71,121 @@ func KickstartAuthorizationCodeRequest() error {
 	urlStr := fmt.Sprintf(spotifyAuthorizeURL+"%s", urlVals.Encode())
 
 	browser.Open(urlStr)
-	go waitForAuth()
+	go waitForExchangeCode()
 	urlVals = <-resCh
 
 	if urlVals == nil {
 		log.Fatal("Couldn't get url params from callback: value is nil")
 	}
 
-	fmt.Printf("%v", urlVals)
+	exchangeCodeResponse := spotifyExchangeCodeResponse{
+		Code: urlVals.Get("code"),
+	}
+
+	authCodeRequest, err := newAuthorizationCodeRequest(exchangeCodeResponse)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't create Authorization Code Request in KickstartAuthorizationCodeRequest(): %v", err)
+		return err
+	}
+
+	spotifyAuthCode, err := requestAuthorizationCode(authCodeRequest)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error during Authorization Code Request: %v", err)
+		return err
+	}
+
+	fmt.Printf("%v", *spotifyAuthCode)
 
 	return nil
 }
 
-func newAuthorizationCodeRequest() (*spotifyAuthorizationCodeRequest, error) {
-	envs, err := envs.LoadEnv()
-
-	return &spotifyAuthorizationCodeRequest{
-		RedirectUri:  "http://localhost:8888/callback",
+func newExchangeCodeRequest() *spotifyExchangeCodeRequest {
+	return &spotifyExchangeCodeRequest{
+		RedirectUri:  redirectUri,
 		ResponseType: "code",
-		ClientID:     envs.GotifyClientID,
+		ClientID:     env.GotifyClientID,
 		Scope:        scopes,
-	}, err
+	}
 }
 
-func waitForAuth() {
+func newAuthorizationCodeRequest(exchangeCodeReq spotifyExchangeCodeResponse) (*spotifyAuthorizationCodeRequest, error) {
+	urlVals, err := query.Values(exchangeCodeReq)
+	code := urlVals.Get("Code")
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't parse response object in newAuthorizationCodeRequest(): %v", err)
+		return nil, err
+	}
+
+	return &spotifyAuthorizationCodeRequest{
+		Code:        code,
+		RedirectUri: redirectUri,
+		GrantType:   "authorization_code",
+	}, nil
+}
+
+func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest) (*SpotifyAuthorizationCode, error) {
+	urlVals, err := query.Values(*authReq)
+	client := &http.Client{}
+	jsonData := make(map[string]string)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't parse auth code request in requestAuthorizationCode(): %v", err)
+		return nil, err
+	}
+
+	httpReq, err := http.NewRequest("POST", spotifyTokenReqURL, strings.NewReader(urlVals.Encode()))
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't create request in requestAuthorizationCode(): %v", err)
+		return nil, err
+	}
+
+	httpReq.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	base64Encoder := base64.StdEncoding
+	base64ClientID := base64Encoder.EncodeToString([]byte(env.GotifyClientID))
+	base64ClientSecret := base64Encoder.EncodeToString([]byte(env.GotifyClientSecret))
+
+	authHeader := fmt.Sprintf("Basic %s:%s", base64ClientID, base64ClientSecret)
+	httpReq.Header.Add("Authorization", authHeader)
+
+	res, err := client.Do(httpReq)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't perform 'POST' request in requestAuthorizationCode(): %v", err)
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		fmt.Fprintf(os.Stderr, "Authorization Code Response is not 200: %d\n", res.StatusCode)
+		return nil, errors.New("response code is not 200")
+	}
+
+	resBody, err := io.ReadAll(res.Body)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't read from response body in requestAuthorizationCode(): %v", err)
+		return nil, err
+	}
+
+	if err = jsons.ParseJSON(resBody, &jsonData); err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't parse JSON from response body in requestAuthorizationCode(): %v", err)
+		return nil, err
+	}
+
+	return &SpotifyAuthorizationCode{
+		AccessToken:  jsonData["access_token"],
+		RefreshToken: jsonData["refresh_token"],
+		TokenType:    jsonData["token_type"],
+		Scope:        jsonData["scope"],
+		ExpiresIn:    jsonData["expires_in"],
+	}, nil
+}
+
+func waitForExchangeCode() {
 	srv := &http.Server{Addr: ":8888"}
 	http.HandleFunc("/callback", handleCallback)
 	closeWg.Add(1)
@@ -95,6 +197,8 @@ func waitForAuth() {
 	fmt.Println("Waiting for request...")
 
 	closeWg.Wait()
+
+	fmt.Println("Request received")
 	srv.Close()
 }
 

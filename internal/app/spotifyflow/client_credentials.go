@@ -18,12 +18,7 @@ type SpotifyClientCredential struct {
 
 func (s *SpotifyClientCredential) Authorize() error {
 	jsonMap := make(map[string]string)
-	envs, err := envs.LoadEnv()
-
-	if err != nil {
-		fmt.Fprint(os.Stderr, "Couldn't load envs")
-		return err
-	}
+	envs := envs.LoadEnv()
 
 	req, err := buildRequest(envs)
 

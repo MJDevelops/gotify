@@ -1,7 +1,7 @@
 package envs
 
 import (
-	"errors"
+	"log"
 	"os"
 )
 
@@ -10,16 +10,15 @@ type GotifyEnv struct {
 	GotifyClientID     string
 }
 
-func LoadEnv() (*GotifyEnv, error) {
+func LoadEnv() *GotifyEnv {
 	clientSecret, clientId := os.Getenv("GOTIFY_CLIENT_SECRET"), os.Getenv("GOTIFY_CLIENT_ID")
-	var err error
 
 	if clientSecret == "" || clientId == "" {
-		err = errors.New("client id and/or client secret are/is not set, exiting")
+		log.Fatal("client_secret and/or client_id not set")
 	}
 
 	return &GotifyEnv{
 		GotifyClientSecret: clientSecret,
 		GotifyClientID:     clientId,
-	}, err
+	}
 }
