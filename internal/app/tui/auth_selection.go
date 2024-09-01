@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 
+	"github.com/MJDevelops/gotify/internal/app/spotifyflow"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -23,7 +24,7 @@ func InitialAuthSelect() *authSelect {
 
 func (m *authSelect) Init() tea.Cmd {
 	m.selected[m.cursor] = struct{}{}
-	return nil
+	return tea.SetWindowTitle("gotify")
 }
 
 func (m *authSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -45,6 +46,20 @@ func (m *authSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", " ":
 			m.selected[m.cursor] = struct{}{}
 			delete(m.selected, m.prevCursor)
+		case "c":
+			for key := range m.selected {
+				if _, ok := m.selected[key]; ok {
+					var authCode spotifyflow.SpotifyFlow
+					if key == 0 {
+						authCode = &spotifyflow.SpotifyAuthorizationCode{}
+					} else {
+						authCode = &spotifyflow.SpotifyClientCredential{}
+					}
+
+					authCode.Authorize()
+					return m, tea.Quit
+				}
+			}
 		}
 	}
 
