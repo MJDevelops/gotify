@@ -49,11 +49,7 @@ func (m *authSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "c":
 			for key := range m.selected {
 				if _, ok := m.selected[key]; ok {
-					var authCode spotifyflow.SpotifyFlow
-					if key == 0 {
-						authCode = &spotifyflow.SpotifyAuthorizationCode{}
-					}
-
+					authCode := &spotifyflow.SpotifyAuthorizationCode{}
 					authCode.Authorize()
 					return m, tea.Quit
 				}
