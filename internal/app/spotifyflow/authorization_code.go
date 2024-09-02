@@ -6,13 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 
+	"github.com/MJDevelops/gotify/internal/app/logging"
 	"github.com/MJDevelops/gotify/internal/pkg/envs"
 	"github.com/MJDevelops/gotify/pkg/browser"
 	"github.com/google/go-querystring/query"
@@ -57,6 +56,7 @@ const spotifyTokenReqURL = "https://accounts.spotify.com/api/token"
 var closeWg sync.WaitGroup
 var resCh = make(chan url.Values)
 var env = envs.LoadEnv()
+var logger = logging.GotifyLogger
 
 func (s *SpotifyAuthorizationCode) Authorize() error {
 	req := newExchangeCodeRequest()
@@ -64,7 +64,7 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 	urlVals, err := query.Values(*req)
 
 	if err != nil {
-		fmt.Fprint(os.Stderr, "Couldn't create URL params from auth struct")
+		logger.Println("Couldn't create URL params from auth struct")
 		return err
 	}
 
@@ -75,7 +75,7 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 	urlVals = <-resCh
 
 	if urlVals == nil {
-		log.Fatal("Couldn't get url params from callback: value is nil")
+		logger.Fatal("Couldn't get url params from callback: value is nil\n")
 	}
 
 	exchangeCodeResponse := spotifyExchangeCodeResponse{
@@ -85,14 +85,14 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 	authCodeRequest, err := newAuthorizationCodeRequest(exchangeCodeResponse)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't create Authorization Code Request in KickstartAuthorizationCodeRequest(): %v", err)
+		logger.Printf("Couldn't create Authorization Code Request in KickstartAuthorizationCodeRequest(): %v\n", err)
 		return err
 	}
 
 	err = requestAuthorizationCode(authCodeRequest, s)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error during Authorization Code Request: %v", err)
+		logger.Printf("Error during Authorization Code Request: %v\n", err)
 		return err
 	}
 
@@ -113,7 +113,7 @@ func newAuthorizationCodeRequest(exchangeCodeReq spotifyExchangeCodeResponse) (*
 	code := urlVals.Get("Code")
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't parse response object in newAuthorizationCodeRequest(): %v", err)
+		logger.Printf("Couldn't parse response object in newAuthorizationCodeRequest(): %v\n", err)
 		return nil, err
 	}
 
@@ -129,14 +129,14 @@ func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *Spoti
 	client := &http.Client{}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't parse auth code request in requestAuthorizationCode(): %v", err)
+		logger.Printf("Couldn't parse auth code request in requestAuthorizationCode(): %v\n", err)
 		return err
 	}
 
 	httpReq, err := http.NewRequest("POST", spotifyTokenReqURL, strings.NewReader(urlVals.Encode()))
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't create request in requestAuthorizationCode(): %v", err)
+		logger.Printf("Couldn't create request in requestAuthorizationCode(): %v\n", err)
 		return err
 	}
 
@@ -151,24 +151,24 @@ func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *Spoti
 	res, err := client.Do(httpReq)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't perform 'POST' request in requestAuthorizationCode(): %v", err)
+		logger.Printf("Couldn't perform 'POST' request in requestAuthorizationCode(): %v\n", err)
 		return err
 	}
 
 	if res.StatusCode != 200 {
-		fmt.Fprintf(os.Stderr, "Authorization Code Response is not 200: %d\n", res.StatusCode)
+		logger.Printf("Authorization Code Response is not 200: %d\n", res.StatusCode)
 		return errors.New("response code is not 200")
 	}
 
 	resBody, err := io.ReadAll(res.Body)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't read from response body in requestAuthorizationCode(): %v", err)
+		logger.Printf("Couldn't read from response body in requestAuthorizationCode(): %v\n", err)
 		return err
 	}
 
 	if err = json.Unmarshal(resBody, s); err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't parse JSON from response body in requestAuthorizationCode(): %v", err)
+		logger.Printf("Couldn't parse JSON from response body in requestAuthorizationCode(): %v\n", err)
 		return err
 	}
 
@@ -181,14 +181,14 @@ func waitForExchangeCode() {
 	closeWg.Add(1)
 
 	if err := srv.ListenAndServe(); err != nil {
-		log.Fatalf("ListenAndServe() %v", err)
+		logger.Fatalf("ListenAndServe() %v\n", err)
 	}
 
-	log.Println("Waiting for request...")
+	logger.Println("Waiting for request...")
 
 	closeWg.Wait()
 
-	log.Println("Request received")
+	logger.Println("Request received")
 	srv.Close()
 }
 
@@ -198,7 +198,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 	urlVal, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Something went wrong: %v", err)
+		logger.Printf("Something went wrong: %v\n", err)
 		resCh <- nil
 	}
 

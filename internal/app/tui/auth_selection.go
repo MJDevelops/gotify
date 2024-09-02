@@ -16,7 +16,7 @@ type authSelect struct {
 
 func InitialAuthSelect() *authSelect {
 	return &authSelect{
-		choices:  []string{"Authorization Code\n", "Client Credential\n"},
+		choices:  []string{"Authorization Code\n", "Client Credential (restricted access only)\n"},
 		cursor:   0,
 		selected: make(map[int]struct{}),
 	}
