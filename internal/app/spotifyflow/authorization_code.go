@@ -20,14 +20,17 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
+// SpotifyAuthorizationCode will be used throughout the application
+// to make requests to the Spotify API.
 type SpotifyAuthorizationCode struct {
-	AccessToken  string      `json:"access_token"`
+	AccessToken  string      `json:"access_token"` // For accessing user specific data from the API
 	TokenType    string      `json:"token_type"`
 	Scope        string      `json:"scope"`
-	ExpiresIn    json.Number `json:"expires_in"`
-	RefreshToken string      `json:"refresh_token"`
+	ExpiresIn    json.Number `json:"expires_in"`    // Time in seconds before the access token is invalidated
+	RefreshToken string      `json:"refresh_token"` // Used for refreshing the access token
 }
 
+// Used for requesting the exchange code.
 type spotifyExchangeCodeRequest struct {
 	ClientID            string `url:"client_id"`
 	ResponseType        string `url:"response_type"`
@@ -42,6 +45,7 @@ type spotifyExchangeCodeResponse struct {
 	Code string `url:"code"`
 }
 
+// Used for requesting the access token by exchanging the code with the Spotify API.
 type spotifyAuthorizationCodeRequest struct {
 	Code         string `url:"code"`
 	GrantType    string `url:"grant_type"`
@@ -50,6 +54,9 @@ type spotifyAuthorizationCodeRequest struct {
 	CodeVerifier string `url:"code_verifier"`
 }
 
+// API scopes which define the requests gotify can make to the Spotify API.
+// See https://developer.spotify.com/documentation/web-api/concepts/scopes
+// for further information.
 const scopes = "user-read-playback-state user-modify-playback-state " +
 	"user-read-currently-playing app-remote-control " +
 	"streaming playlist-read-private " +
@@ -66,6 +73,8 @@ var resCh = make(chan url.Values)
 var env = envs.LoadEnv()
 var logger = logs.GetLoggerInstance()
 
+// Authorizes gotify with the Spotify Authorization Code PKCE Flow. Further information
+// can be found at https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow
 func (s *SpotifyAuthorizationCode) Authorize() error {
 	req, codeVerifier, err := newExchangeCodeRequest()
 
@@ -112,6 +121,7 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 	return nil
 }
 
+// Prepares exchange code request.
 func newExchangeCodeRequest() (*spotifyExchangeCodeRequest, string, error) {
 	codeVerifier, err := randomBytesInHex(32)
 
@@ -136,6 +146,7 @@ func newExchangeCodeRequest() (*spotifyExchangeCodeRequest, string, error) {
 	}, codeVerifier, err
 }
 
+// Prepares the Authorization Code request.
 func newAuthorizationCodeRequest(exchangeCodeRes spotifyExchangeCodeResponse, verifier string) (*spotifyAuthorizationCodeRequest, error) {
 	urlVals, err := query.Values(exchangeCodeRes)
 	code := urlVals.Get("code")
@@ -154,6 +165,8 @@ func newAuthorizationCodeRequest(exchangeCodeRes spotifyExchangeCodeResponse, ve
 	}, nil
 }
 
+// Finishes the Spotify Authorization Code PKCE flow. The resulting access token can be used
+// to request user specific data from the Spotify API.
 func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *SpotifyAuthorizationCode) error {
 	urlVals, err := query.Values(*authReq)
 	client := &http.Client{}
@@ -199,6 +212,10 @@ func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *Spoti
 	return nil
 }
 
+// Sets up a HTTP Server which will listen at the callback URI
+// for a request. Spotify will automatically redirect the user to this URI
+// when the user has granted gotify access to request specific data
+// on the users behalf.
 func waitForExchangeCode() {
 	srv := &http.Server{Addr: ":8888"}
 	http.HandleFunc("/callback", handleCallback)
@@ -216,6 +233,7 @@ func waitForExchangeCode() {
 	srv.Close()
 }
 
+// Callback handler which is used by [waitForExchangeCode]
 func handleCallback(w http.ResponseWriter, r *http.Request) {
 	defer closeWg.Done()
 
