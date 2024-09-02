@@ -56,7 +56,7 @@ const spotifyTokenReqURL = "https://accounts.spotify.com/api/token"
 var closeWg sync.WaitGroup
 var resCh = make(chan url.Values)
 var env = envs.LoadEnv()
-var logger = logging.GotifyLogger
+var logger = logging.GetLoggerInstance()
 
 func (s *SpotifyAuthorizationCode) Authorize() error {
 	req := newExchangeCodeRequest()
@@ -142,8 +142,7 @@ func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *Spoti
 
 	httpReq.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	base64Encoder := base64.StdEncoding
-	base64EncodedStr := base64Encoder.EncodeToString([]byte(env.GotifyClientID + ":" + env.GotifyClientSecret))
+	base64EncodedStr := base64.StdEncoding.EncodeToString([]byte(env.GotifyClientID + ":" + env.GotifyClientSecret))
 
 	authHeader := fmt.Sprintf("Basic %s", base64EncodedStr)
 	httpReq.Header.Add("Authorization", authHeader)
