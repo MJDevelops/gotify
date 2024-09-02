@@ -81,11 +81,6 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 		return err
 	}
 
-	if err != nil {
-		logger.Printf("Couldn't create state parameter: %v\n", err)
-		return err
-	}
-
 	urlStr := fmt.Sprintf(spotifyAuthorizeURL+"%s", urlVals.Encode())
 
 	browser.Open(urlStr)
