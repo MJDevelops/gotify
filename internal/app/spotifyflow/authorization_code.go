@@ -1,7 +1,10 @@
 package spotifyflow
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,10 +29,13 @@ type SpotifyAuthorizationCode struct {
 }
 
 type spotifyExchangeCodeRequest struct {
-	ClientID     string `url:"client_id"`
-	ResponseType string `url:"response_type"`
-	RedirectUri  string `url:"redirect_uri"`
-	Scope        string `url:"scope"`
+	ClientID            string `url:"client_id"`
+	ResponseType        string `url:"response_type"`
+	RedirectUri         string `url:"redirect_uri"`
+	Scope               string `url:"scope"`
+	State               string `url:"state"`
+	CodeChallengeMethod string `url:"code_challenge_method"`
+	CodeChallenge       string `url:"code_challenge"`
 }
 
 type spotifyExchangeCodeResponse struct {
@@ -37,9 +43,11 @@ type spotifyExchangeCodeResponse struct {
 }
 
 type spotifyAuthorizationCodeRequest struct {
-	Code        string `url:"code"`
-	GrantType   string `url:"grant_type"`
-	RedirectUri string `url:"redirect_uri"`
+	Code         string `url:"code"`
+	GrantType    string `url:"grant_type"`
+	RedirectUri  string `url:"redirect_uri"`
+	ClientID     string `url:"client_id"`
+	CodeVerifier string `url:"code_verifier"`
 }
 
 const scopes = "user-read-playback-state user-modify-playback-state " +
@@ -59,12 +67,22 @@ var env = envs.LoadEnv()
 var logger = logs.GetLoggerInstance()
 
 func (s *SpotifyAuthorizationCode) Authorize() error {
-	req := newExchangeCodeRequest()
+	req, codeVerifier, err := newExchangeCodeRequest()
+
+	if err != nil {
+		logger.Printf("Couldn't create code request: %v\n", err)
+		return err
+	}
 
 	urlVals, err := query.Values(*req)
 
 	if err != nil {
 		logger.Println("Couldn't create URL params from auth struct")
+		return err
+	}
+
+	if err != nil {
+		logger.Printf("Couldn't create state parameter: %v\n", err)
 		return err
 	}
 
@@ -82,7 +100,7 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 		Code: urlVals.Get("code"),
 	}
 
-	authCodeRequest, err := newAuthorizationCodeRequest(exchangeCodeResponse)
+	authCodeRequest, err := newAuthorizationCodeRequest(exchangeCodeResponse, codeVerifier)
 
 	if err != nil {
 		logger.Printf("Couldn't create Authorization Code Request in KickstartAuthorizationCodeRequest(): %v\n", err)
@@ -99,16 +117,31 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 	return nil
 }
 
-func newExchangeCodeRequest() *spotifyExchangeCodeRequest {
-	return &spotifyExchangeCodeRequest{
-		RedirectUri:  redirectUri,
-		ResponseType: "code",
-		ClientID:     env.GotifyClientID,
-		Scope:        scopes,
+func newExchangeCodeRequest() (*spotifyExchangeCodeRequest, string, error) {
+	codeVerifier, err := randomBytesInHex(32)
+
+	if err != nil {
+		logger.Printf("Couldn't generate code verifier: %v\n", err)
+		return nil, "", err
 	}
+
+	sha := sha256.New()
+	io.WriteString(sha, codeVerifier)
+	codeChallenge := base64.RawURLEncoding.EncodeToString(sha.Sum(nil))
+	state, err := randomBytesInHex(24)
+
+	return &spotifyExchangeCodeRequest{
+		RedirectUri:         redirectUri,
+		ResponseType:        "code",
+		ClientID:            env.GotifyClientID,
+		Scope:               scopes,
+		State:               state,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: "S256",
+	}, codeVerifier, err
 }
 
-func newAuthorizationCodeRequest(exchangeCodeReq spotifyExchangeCodeResponse) (*spotifyAuthorizationCodeRequest, error) {
+func newAuthorizationCodeRequest(exchangeCodeReq spotifyExchangeCodeResponse, verifier string) (*spotifyAuthorizationCodeRequest, error) {
 	urlVals, err := query.Values(exchangeCodeReq)
 	code := urlVals.Get("Code")
 
@@ -118,9 +151,11 @@ func newAuthorizationCodeRequest(exchangeCodeReq spotifyExchangeCodeResponse) (*
 	}
 
 	return &spotifyAuthorizationCodeRequest{
-		Code:        code,
-		RedirectUri: redirectUri,
-		GrantType:   "authorization_code",
+		Code:         code,
+		RedirectUri:  redirectUri,
+		GrantType:    "authorization_code",
+		CodeVerifier: verifier,
+		ClientID:     env.GotifyClientID,
 	}, nil
 }
 
@@ -141,11 +176,6 @@ func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *Spoti
 	}
 
 	httpReq.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	base64EncodedStr := base64.StdEncoding.EncodeToString([]byte(env.GotifyClientID + ":" + env.GotifyClientSecret))
-
-	authHeader := fmt.Sprintf("Basic %s", base64EncodedStr)
-	httpReq.Header.Add("Authorization", authHeader)
 
 	res, err := client.Do(httpReq)
 
@@ -203,4 +233,14 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 
 	resCh <- urlVal
 	io.WriteString(w, "Authorized, you can close this tab")
+}
+
+func randomBytesInHex(count int) (string, error) {
+	buf := make([]byte, count)
+	_, err := io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return "", fmt.Errorf("could not generate %d random bytes: %v", count, err)
+	}
+
+	return hex.EncodeToString(buf), nil
 }

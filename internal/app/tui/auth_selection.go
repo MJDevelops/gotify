@@ -16,7 +16,7 @@ type authSelect struct {
 
 func InitialAuthSelect() *authSelect {
 	return &authSelect{
-		choices:  []string{"Authorization Code\n", "Client Credential (restricted access only)\n"},
+		choices:  []string{"Authorization Code\n"},
 		cursor:   0,
 		selected: make(map[int]struct{}),
 	}
@@ -52,8 +52,6 @@ func (m *authSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					var authCode spotifyflow.SpotifyFlow
 					if key == 0 {
 						authCode = &spotifyflow.SpotifyAuthorizationCode{}
-					} else {
-						authCode = &spotifyflow.SpotifyClientCredential{}
 					}
 
 					authCode.Authorize()
