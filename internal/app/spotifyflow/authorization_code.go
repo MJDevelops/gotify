@@ -39,7 +39,7 @@ type spotifyExchangeCodeRequest struct {
 }
 
 type spotifyExchangeCodeResponse struct {
-	Code string
+	Code string `url:"code"`
 }
 
 type spotifyAuthorizationCodeRequest struct {
@@ -136,9 +136,9 @@ func newExchangeCodeRequest() (*spotifyExchangeCodeRequest, string, error) {
 	}, codeVerifier, err
 }
 
-func newAuthorizationCodeRequest(exchangeCodeReq spotifyExchangeCodeResponse, verifier string) (*spotifyAuthorizationCodeRequest, error) {
-	urlVals, err := query.Values(exchangeCodeReq)
-	code := urlVals.Get("Code")
+func newAuthorizationCodeRequest(exchangeCodeRes spotifyExchangeCodeResponse, verifier string) (*spotifyAuthorizationCodeRequest, error) {
+	urlVals, err := query.Values(exchangeCodeRes)
+	code := urlVals.Get("code")
 
 	if err != nil {
 		logger.Printf("Couldn't parse response object in newAuthorizationCodeRequest(): %v\n", err)
