@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/MJDevelops/gotify/internal/pkg/envs"
-	"github.com/MJDevelops/gotify/internal/pkg/logging"
+	"github.com/MJDevelops/gotify/internal/pkg/logs"
 	"github.com/MJDevelops/gotify/pkg/browser"
 	"github.com/google/go-querystring/query"
 )
@@ -56,7 +56,7 @@ const spotifyTokenReqURL = "https://accounts.spotify.com/api/token"
 var closeWg sync.WaitGroup
 var resCh = make(chan url.Values)
 var env = envs.LoadEnv()
-var logger = logging.GetLoggerInstance()
+var logger = logs.GetLoggerInstance()
 
 func (s *SpotifyAuthorizationCode) Authorize() error {
 	req := newExchangeCodeRequest()
