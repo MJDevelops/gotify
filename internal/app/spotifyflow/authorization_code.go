@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/MJDevelops/gotify/internal/app/logging"
 	"github.com/MJDevelops/gotify/internal/pkg/envs"
+	"github.com/MJDevelops/gotify/internal/pkg/logging"
 	"github.com/MJDevelops/gotify/pkg/browser"
 	"github.com/google/go-querystring/query"
 )
