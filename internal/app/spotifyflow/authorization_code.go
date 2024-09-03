@@ -77,6 +77,7 @@ var logger = logs.GetLoggerInstance()
 // can be found at https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow
 func (s *SpotifyAuthorizationCode) Authorize() error {
 	req, codeVerifier, err := newExchangeCodeRequest()
+	logger.Println("Created exchange code request")
 
 	if err != nil {
 		logger.Printf("Couldn't create code request: %v\n", err)
@@ -100,6 +101,8 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 		logger.Fatal("Couldn't get url params from callback: value is nil\n")
 	}
 
+	logger.Println("Exchange code received")
+
 	exchangeCodeResponse := spotifyExchangeCodeResponse{
 		Code: urlVals.Get("code"),
 	}
@@ -111,12 +114,17 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 		return err
 	}
 
+	logger.Println("Authorization Code request created")
+	logger.Println("Requesting authorization code")
+
 	err = requestAuthorizationCode(authCodeRequest, s)
 
 	if err != nil {
 		logger.Printf("Error during Authorization Code Request: %v\n", err)
 		return err
 	}
+
+	logger.Println("gotify authorized")
 
 	return nil
 }
@@ -185,6 +193,7 @@ func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *Spoti
 
 	httpReq.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
+	logger.Println("Sending authorization code request to Spotify API")
 	res, err := client.Do(httpReq)
 
 	if err != nil {
