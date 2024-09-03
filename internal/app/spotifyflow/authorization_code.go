@@ -240,7 +240,7 @@ func waitForExchangeCode() {
 	closeWg.Add(1)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
-			logger.Fatalf("ListenAndServe() %v\n", err)
+			logger.Printf("ListenAndServe() %v\n", err)
 		}
 	}()
 
