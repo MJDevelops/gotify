@@ -11,8 +11,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/MJDevelops/gotify/internal/pkg/envs"
 	"github.com/MJDevelops/gotify/internal/pkg/logs"
@@ -228,16 +230,24 @@ func requestAuthorizationCode(authReq *spotifyAuthorizationCodeRequest, s *Spoti
 func waitForExchangeCode() {
 	srv := &http.Server{Addr: ":8888"}
 	http.HandleFunc("/callback", handleCallback)
+
+	timer := time.AfterFunc(30*time.Second, func() {
+		logger.Println("Request timeout, shutting down server")
+		srv.Close()
+		os.Exit(1)
+	})
+
 	closeWg.Add(1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			logger.Fatalf("ListenAndServe() %v\n", err)
+		}
+	}()
 
-	if err := srv.ListenAndServe(); err != nil {
-		logger.Fatalf("ListenAndServe() %v\n", err)
-	}
-
-	logger.Println("Waiting for request...")
-
+	logger.Println("Waiting for request")
 	closeWg.Wait()
 
+	timer.Stop()
 	logger.Println("Request received")
 	srv.Close()
 }
