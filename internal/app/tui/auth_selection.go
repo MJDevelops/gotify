@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/MJDevelops/gotify/internal/app/spotifyflow"
+	"github.com/MJDevelops/gotify/internal/pkg/cache"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -51,6 +52,7 @@ func (m *authSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if _, ok := m.selected[key]; ok {
 					authCode := &spotifyflow.SpotifyAuthorizationCode{}
 					authCode.Authorize()
+					cache.CacheSpotifyAuthCode(authCode)
 					return m, tea.Quit
 				}
 			}
