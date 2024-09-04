@@ -95,7 +95,15 @@ func (s *SpotifyAuthorizationCode) Authorize() error {
 
 	urlStr := fmt.Sprintf(spotifyAuthorizeURL+"%s", urlVals.Encode())
 
-	browser.Open(urlStr)
+	err = browser.Open(urlStr)
+
+	if err != nil {
+		errMessage := fmt.Sprintf("Couldn't open URL in browser: %v", err)
+		logger.Println(errMessage)
+		fmt.Println(errMessage)
+		fmt.Printf("Open the following link in your browser to authorize: %s\n", urlStr)
+	}
+
 	go waitForExchangeCode()
 	urlVals = <-resCh
 
