@@ -1,4 +1,4 @@
-package spotifyflow
+package auth
 
 type SpotifyFlow interface {
 	Authorize() error

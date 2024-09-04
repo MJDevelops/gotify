@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/MJDevelops/gotify/internal/app/spotifyflow"
+	"github.com/MJDevelops/gotify/internal/app/auth"
 	"github.com/MJDevelops/gotify/internal/pkg/logs"
 )
 
 var authCacheFile = "gotify_cache.json"
 var logger = logs.GetLoggerInstance()
 
-func CacheSpotifyAuthCode(s *spotifyflow.SpotifyAuthorizationCode) error {
+func CacheSpotifyAuthCode(s *auth.SpotifyAuthorizationCode) error {
 	file, _ := os.OpenFile(authCacheFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	data, err := json.Marshal(s)
 

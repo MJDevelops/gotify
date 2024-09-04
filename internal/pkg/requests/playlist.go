@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/MJDevelops/gotify/internal/app/spotifyflow"
+	"github.com/MJDevelops/gotify/internal/app/auth"
 	"github.com/MJDevelops/gotify/internal/pkg/logs"
 )
 
 type playlistRequest struct {
-	*spotifyflow.SpotifyAuthorizationCode
+	*auth.SpotifyAuthorizationCode
 }
 
 type simplifiedPlaylistObject struct {
@@ -68,7 +68,7 @@ const apiURL string = "https://api.spotify.com/v1"
 
 var logger = logs.GetLoggerInstance()
 
-func InitPlaylistRequest(s *spotifyflow.SpotifyAuthorizationCode) (*playlistRequest, error) {
+func InitPlaylistRequest(s *auth.SpotifyAuthorizationCode) (*playlistRequest, error) {
 	return &playlistRequest{
 		s,
 	}, nil

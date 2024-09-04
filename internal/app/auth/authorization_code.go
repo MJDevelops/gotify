@@ -1,4 +1,4 @@
-package spotifyflow
+package auth
 
 import (
 	"crypto/rand"
