@@ -35,8 +35,8 @@ type simplifiedPlaylistObject struct {
 			Spotify string `json:"spotify"`
 		} `json:"external_urls"`
 		Followers struct {
-			Href  string `json:"href"`
-			Total int    `json:"total"`
+			Href  string      `json:"href"`
+			Total json.Number `json:"total"`
 		} `json:"followers"`
 		Href        string `json:"href"`
 		Id          string `json:"id"`
