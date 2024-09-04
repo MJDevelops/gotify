@@ -64,8 +64,6 @@ type currentUserPlaylistResponse struct {
 	Items    []simplifiedPlaylistObject `json:"items"`
 }
 
-const apiURL string = "https://api.spotify.com/v1"
-
 var logger = logs.GetLoggerInstance()
 
 func InitPlaylistRequest(s *auth.SpotifyAuthorizationCode) (*playlistRequest, error) {
@@ -91,7 +89,7 @@ func (u *playlistRequest) GetCurrentUserPlaylists(limit int, offset int) (*curre
 	urlVal.Add("limit", fmt.Sprint(limit))
 	urlVal.Add("offset", fmt.Sprint(offset))
 
-	req, err := http.NewRequest("GET", apiURL+"/me/playlists?"+urlVal.Encode(), nil)
+	req, err := http.NewRequest("GET", CurrentUserPlaylistsReqURL+urlVal.Encode(), nil)
 
 	if err != nil {
 		logger.Printf("Couldn't create request: %v\n", err)
